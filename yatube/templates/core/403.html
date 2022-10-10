@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}
+  <title>Доступ запрещён</title>
+{% endblock %}
+{% block content %}
+    <h1>Custom 403</h1>
+    <h4>В доступе отказано, авторизуйтесь и повторите попытку</h4>
+    <a href="{% url 'users:signup' %}">Авторизоваться</a>
+{% endblock %}
