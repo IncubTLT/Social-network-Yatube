@@ -24,22 +24,14 @@ def index(request):
 
 
 def group_posts(request, slug):
-    # group = get_object_or_404(Group, slug=slug)
-    # page_obj = get_page_context(group.posts.select_related('group'), request)
-    # context = {
-    #     'group': group,
-    #     'page_obj': page_obj
-    # }
-    # return render(request, 'posts/group_list.html', context)
-    group_list = get_object_or_404(Group, slug=slug)
-    paginator = Paginator(group_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return render(
-        request,
-        'posts/group_list.html',
-        {'group': paginator, 'page_obj': page_obj}
-    )
+    group = get_object_or_404(Group, slug=slug)
+    page_obj = get_page_context(group.posts.select_related('group'), request)
+    context = {
+        'group': group,
+        'page_obj': page_obj
+    }
+    return render(request, 'posts/group_list.html', context)
+
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
