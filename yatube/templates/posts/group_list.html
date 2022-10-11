@@ -1,6 +1,7 @@
 <!-- Group page. -->
 {% extends 'base.html' %}
 {% load thumbnail %}
+{% load%}
   {% block title %}
     <title>{{ group.title }}</title>
   {% endblock %}
@@ -12,10 +13,23 @@
         {% for post in page_obj %}
           <li>Автор: {{ post.author.get_full_name }}</li>
           <li>Дата публикации: {{ post.pub_date|date:"d E Y" }}</li>
+          <li>
+          {% if author != post.author %}
+            <a class="button fast white" href="{% url 'posts:profile' post.author %}">все_посты_пользователя</a>
+          {% endif %}
+          </li>
             {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
               <img class="card-img my-2" src="{{ im.url }}">
             {% endthumbnail %}    
-          <p>{{ post.text }}</p>
+            <p>{{ post.text }}</p>
+            <li>
+            <a class="button fast white" href="{% url 'posts:post_detail' post.pk %}">подробная_информация </a>
+            </li>
+            <li>
+            {% if post.group and group != post.group %}
+            <a class="button fast white" href="{% url 'posts:group_list' post.group.slug %}">все_записи_группы</a>
+            {% endif %}
+            </li>
           {% if not forloop.last %}
             <hr>
         {% endif %}

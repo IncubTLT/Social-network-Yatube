@@ -11,8 +11,7 @@ from .models import Comment, Follow, Group, Post, User
 def get_page_context(queryset, request):
     paginator = Paginator(queryset, 10)
     page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return page_obj
+    return paginator.get_page(page_number)
 
 
 @cache_page(20, key_prefix='index_page')
