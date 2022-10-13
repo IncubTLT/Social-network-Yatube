@@ -35,9 +35,10 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     posts = author.posts.select_related('author')
-    following = request.user.is_authenticated
-    if following:
-        following = author.following.filter(user=request.user).exists()
+    following = (request.user.is_authenticated
+                 and Follow.objects.filter(
+                     user=request.user,
+                     author=author).exists())
     context = {
         'following': following,
         'author': author,
@@ -129,6 +130,6 @@ def profile_follow(request, username):
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
     Follow.objects.filter(
-        user=request.user, author__username=username
+        user=request.user, author=author
     ).delete()
     return redirect("posts:profile", username=author)

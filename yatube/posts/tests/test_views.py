@@ -190,53 +190,70 @@ class FollowViewsTest(TestCase):
         )
 
     def setUp(self):
-        cache.clear()
         self.author_client = Client()
-        self.author_client.force_login(self.follower)
+        self.author_client.force_login(self.author)
         self.follower_client = Client()
-        self.follower_client.force_login(self.author)
+        self.follower_client.force_login(self.follower)
+        self.count_follows = Follow.objects.count()
+        cache.clear()
 
     def test_follow(self):
         """Подписка на автора."""
-        count_follows = Follow.objects.count()
-        self.follower_client.post(
+        self.author_client.post(
             reverse(
                 'posts:profile_follow',
                 kwargs={'username': self.follower}))
-        follow = Follow.objects.all().latest('id')
-        self.assertEqual(Follow.objects.count(), count_follows + 1)
-        self.assertEqual(follow.author_id, self.follower.id)
-        self.assertEqual(follow.user_id, self.author.id)
+        self.assertEqual(Follow.objects.count(), self.count_follows + 1)
+        self.assertTrue(
+            Follow.objects.filter(
+                author=self.follower,
+                user=self.author,
+            ).exists()
+        )
 
     def test_unfollow(self):
         """Отписка от автора."""
-        Follow.objects.create(
-            user=self.author,
-            author=self.follower)
-        count_follow = Follow.objects.count()
-        self.follower_client.post(
+        self.author_client.post(
             reverse(
                 'posts:profile_unfollow',
                 kwargs={'username': self.follower}))
-        self.assertEqual(Follow.objects.count(), count_follow - 1)
+        self.assertEqual(Follow.objects.count(), 0)
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.follower,
+                user=self.author,
+            ).exists()
+        )
 
     def test_follow_list_is_here(self):
         """Страница с пописками в контексте у пользователя."""
-        post = Post.objects.create(
-            author=self.author,
-            text="Test_follow")
         Follow.objects.create(
             user=self.follower,
-            author=self.author)
-        response = self.author_client.get(
-            reverse('posts:follow_index'))
-        self.assertIn(post, response.context['page_obj'].object_list)
+            author=self.author
+        )
+        response = self.follower_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertIn(self.post, response.context['page_obj'].object_list)
 
     def test_notfollow_on_authors(self):
         """Страница стандартная у не подписавшихся."""
-        post = Post.objects.create(
-            author=self.author,
-            text="Test_follow")
         response = self.author_client.get(
-            reverse('posts:follow_index'))
-        self.assertNotIn(post, response.context['page_obj'].object_list)
+            reverse('posts:follow_index')
+        )
+        self.assertNotIn(self.post, response.context['page_obj'].object_list)
+
+    def test_cant_follow_to_yourself(self):
+        """Автор не может подписаться на себя."""
+        self.author_client.post(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': self.follower}
+            )
+        )
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.author,
+            ).exists()
+        )

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from posts.forms import PostForm
 from posts.models import Comment, Group, Post, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -21,6 +22,12 @@ class PostCreateFormTests(TestCase):
             title='test_group',
             slug='test_slug'
         )
+        cls.post = Post.objects.create(
+            author=cls.author,
+            text='Тестовый пост',
+            group=cls.group
+        )
+        cls.form = PostForm()
 
     @classmethod
     def tearDownClass(cls):
@@ -28,71 +35,14 @@ class PostCreateFormTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        """Создаем клиента и пост."""
+        """Создаем клиента."""
+        self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
-        self.post = Post.objects.create(
-            text='Тестовый пост',
-            author=self.author,
-            group=self.group)
         self.posts_count = Post.objects.count()
-        self.form_data = {
-            'text': 'Тестовый текст',
-            'group': self.group.id,
-        }
 
     def test_create_post(self):
         """Валидная форма создает запись."""
-        response = self.authorized_client.post(
-            reverse('posts:post_create'),
-            data=self.form_data,
-            follow=True
-        )
-        self.assertEqual(
-            Post.objects.count(),
-            self.posts_count + 1,
-            'Пост не сохранен!'
-        )
-        self.assertRedirects(
-            response,
-            reverse('posts:profile',
-                    args=(self.author.username,))
-        )
-        self.assertTrue(
-            Post.objects.filter(
-                text=self.form_data['text'],
-                group=self.form_data['group']
-            ).exists()
-        )
-
-    def test_cant_create_existing_slug(self):
-        """Проверка редактирования текста поста."""
-        response = self.authorized_client.post(
-            reverse('posts:post_edit', args=(self.post.id,)),
-            data=self.form_data,
-            follow=True
-        )
-        edited_post = Post.objects.get(id=self.post.id)
-        self.assertEqual(
-            edited_post.text,
-            self.form_data['text'],
-            'Текст поста не изменился.'
-        )
-        self.assertEqual(
-            edited_post.group.id,
-            self.form_data['group'],
-            'slug изменился!'
-        )
-        # При изменении поста не создаётся новая запись.
-        self.assertEqual(
-            Post.objects.count(),
-            self.posts_count,
-            'Ошибочно создалась запись.'
-        )
-        # Страница отвечает.
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_image_in_(self):
         small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -108,17 +58,64 @@ class PostCreateFormTests(TestCase):
         )
         form_data = {
             'text': 'post_with_image',
-            'group': self.group.id,
-            'image': uploaded
+            'group': self.group.pk,
+            'image': uploaded,
         }
-        self.authorized_client.post(
+        response = self.authorized_client.post(
             reverse('posts:post_create'),
             data=form_data,
             follow=True
         )
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.OK.value
+        )
+        self.assertEqual(
+            Post.objects.count(),
+            self.posts_count + 1,
+            'Пост не сохранен!'
+        )
+        self.assertRedirects(
+            response,
+            reverse('posts:profile',
+                    args=(self.author.username,))
+        )
         self.assertTrue(Post.objects.filter(
-            image='posts/small.gif'
-        ).exists())
+            text=form_data['text'],
+            group=form_data['group'],
+            image='posts/small.gif').exists()
+        )
+
+    def test_cant_create_existing_slug(self):
+        """Проверка редактирования текста поста."""
+        form_data = {
+            'text': 'post_with_image',
+            'group': self.group.pk,
+        }
+        response = self.authorized_client.post(
+            reverse('posts:post_edit', args=(self.post.id,)),
+            data=form_data,
+            follow=True
+        )
+        edited_post = Post.objects.get(id=self.post.id)
+        self.assertEqual(
+            edited_post.text,
+            form_data['text'],
+            'Текст поста не изменился.'
+        )
+        self.assertEqual(
+            edited_post.group.id,
+            form_data['group'],
+            'slug изменился!'
+        )
+        # При изменении поста не создаётся новая запись.
+        self.assertEqual(
+            Post.objects.count(),
+            self.posts_count,
+            'Ошибочно создалась запись.'
+        )
+        # Страница отвечает.
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_comment_add_authorized_user(self):
         """Авторизованный юзер добавляет коммент."""
